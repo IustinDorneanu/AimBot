@@ -21,7 +21,7 @@ To test actual capture:
 .\.venv\Scripts\python.exe -m visionaim --capture-only
 ```
 
-Run Control in borderless or windowed mode, then focus the game. Match the title using `--window-title "Control"` if necessary. Capture pauses when the game is minimized or loses foreground focus. The crop is 50% of the client width and height; window borders and title bars are excluded. Other applications covering the capture region will appear in the capture. Keep the preview outside the game area, preferably on a second monitor. If capture is black, use borderless mode before experimenting with the optional DXCam backend.
+Run Control in borderless or windowed mode, then focus the game. A window must match both the title substring and one of the profile's `process_names` (`Control_DX11.exe` or `Control_DX12.exe` by default), so windows like Control Panel are ignored. `--list-windows` shows each window's executable; override with `--window-title "Control"` and `--process Control_DX12.exe` if necessary. Capture pauses when the game is minimized or loses foreground focus. The crop is 50% of the client width and height; window borders and title bars are excluded. Other applications covering the capture region will appear in the capture. Keep the preview outside the game area, preferably on a second monitor. If capture is black, use borderless mode before experimenting with the optional DXCam backend.
 
 ## Controls
 
@@ -75,6 +75,7 @@ CPU inference is the portable default. For an NVIDIA GPU, install the CUDA-enabl
 Edit `profiles/control.json`; settings are validated at launch:
 
 - `window_title`: case-insensitive visible window title substring.
+- `process_names`: accepted game executable names (case-insensitive). An empty list matches by title only.
 - `capture_backend`: `mss` by default; works with multiple monitors and negative desktop coordinates.
 - `capture_fps`: requested capture/pipeline rate; inference may reduce the actual rate.
 - `capture_fraction`: centered fraction of the game client area.

@@ -27,7 +27,8 @@ class ConfigurationTests(unittest.TestCase):
                        {"half": True}, {"detection_resolution": [640, -1]},
                        {"capture_fps": True}, {"target_point": "adaptive"},
                        {"confidence": float("nan")}, {"enemy_classes": "enemy"},
-                       {"aim_radius": 0}, {"half": "false"}):
+                       {"aim_radius": 0}, {"half": "false"},
+                       {"process_names": "Control.exe"}, {"process_names": [""]}):
             with self.subTest(change=change), self.assertRaises(ValueError):
                 replace(Profile(), **change).validate()
 

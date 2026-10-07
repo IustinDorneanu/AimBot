@@ -4,6 +4,7 @@ from visionaim.detection.detector import Detection
 from visionaim.targeting.marker_lock import MarkerLock
 from visionaim.capture.mouse_input import Input, move_relative
 import ctypes
+import sys
 
 
 def marker(x=450, y=140):
@@ -87,8 +88,11 @@ class MarkerLockTests(unittest.TestCase):
             self.assertFalse(move_relative(desktop, object(), 5, -5))
             desktop.api.SendInput.assert_not_called()
 
-    def test_input_layout_and_motion_without_clicks(self):
+    @unittest.skipUnless(sys.platform == 'win32', 'wintypes.LONG is 8 bytes outside Windows')
+    def test_input_matches_win32_layout(self):
         self.assertEqual(ctypes.sizeof(Input), 40 if ctypes.sizeof(ctypes.c_void_p) == 8 else 28)
+
+    def test_motion_without_clicks(self):
         desktop = Mock()
         desktop.is_foreground.return_value = True
         desktop.key_down.return_value = True

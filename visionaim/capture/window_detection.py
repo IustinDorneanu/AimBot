@@ -1,8 +1,9 @@
 """Win32 client-area discovery. No memory access, injection, or rendering hooks."""
 import ctypes
+import ntpath
 import sys
 from ctypes import wintypes
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from ..geometry import Rect
 
 
@@ -11,6 +12,7 @@ class GameWindow:
     handle: int
     title: str
     client: Rect
+    process: str = ""
 
 
 class WindowsDesktop:
@@ -29,9 +31,20 @@ class WindowsDesktop:
             "ClientToScreen": ([wintypes.HWND, ctypes.POINTER(wintypes.POINT)], wintypes.BOOL),
             "GetForegroundWindow": ([], wintypes.HWND),
             "GetAsyncKeyState": ([ctypes.c_int], ctypes.c_short),
+            "GetWindowThreadProcessId": ([wintypes.HWND, ctypes.POINTER(wintypes.DWORD)], wintypes.DWORD),
         }
         for name, (args, result) in signatures.items():
             fn = getattr(self.api, name)
+            fn.argtypes, fn.restype = args, result
+        self.kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        signatures = {
+            "OpenProcess": ([wintypes.DWORD, wintypes.BOOL, wintypes.DWORD], wintypes.HANDLE),
+            "QueryFullProcessImageNameW": ([wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
+                                            ctypes.POINTER(wintypes.DWORD)], wintypes.BOOL),
+            "CloseHandle": ([wintypes.HANDLE], wintypes.BOOL),
+        }
+        for name, (args, result) in signatures.items():
+            fn = getattr(self.kernel, name)
             fn.argtypes, fn.restype = args, result
         # Windows 10 physical pixel coordinates, including displays at 125/150% scaling.
         try:
@@ -62,8 +75,31 @@ class WindowsDesktop:
             raise ctypes.WinError(ctypes.get_last_error())
         return found
 
-    def find(self, title):
+    def process_name(self, hwnd):
+        """Executable file name, or "" when Windows denies access (e.g. elevated processes)."""
+        pid = wintypes.DWORD()
+        if not self.api.GetWindowThreadProcessId(hwnd, ctypes.byref(pid)):
+            return ""
+        handle = self.kernel.OpenProcess(0x1000, False, pid.value)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not handle:
+            return ""
+        try:
+            size = wintypes.DWORD(1024)
+            buf = ctypes.create_unicode_buffer(size.value)
+            if not self.kernel.QueryFullProcessImageNameW(handle, 0, buf, ctypes.byref(size)):
+                return ""
+            return ntpath.basename(buf.value)
+        finally:
+            self.kernel.CloseHandle(handle)
+
+    def find(self, title, processes=()):
+        # Title substrings alone also match e.g. "Control Panel"; the process
+        # filter keeps capture and input on the game itself.
+        allowed = {p.casefold() for p in processes}
         matches = [w for w in self.windows() if title.casefold() in w.title.casefold()]
+        if allowed:
+            matches = [replace(w, process=self.process_name(w.handle)) for w in matches]
+            matches = [w for w in matches if w.process.casefold() in allowed]
         if not matches:
             return None
         foreground = self.api.GetForegroundWindow()

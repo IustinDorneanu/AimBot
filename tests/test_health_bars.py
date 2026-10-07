@@ -22,6 +22,18 @@ class HealthBarTests(unittest.TestCase):
             self.assertEqual(len(found), 1)
             self.assertAlmostEqual(found[0].x, 400, delta=1)
 
+    def test_multi_digit_level_is_one_centered_marker(self):
+        for glyphs in ([(424, 427), (432, 435)], [(426, 428), (431, 435)],
+                       [(420, 423), (428, 431), (436, 439)]):
+            frame = self.frame()
+            cv2.rectangle(frame, (400, 200), (459, 207), (20, 100, 225), -1)
+            for start, end in glyphs:
+                cv2.rectangle(frame, (start, 158), (end, 169), (20, 100, 225), -1)
+            with self.subTest(glyphs=glyphs):
+                found = HealthBarDetector().detect(frame)
+                self.assertEqual(len(found), 1)
+                self.assertAlmostEqual(found[0].x, 400, delta=1.5)
+
     def test_effects_without_level_rejected(self):
         frame = self.frame()
         cv2.rectangle(frame, (400, 200), (459, 207), (20, 100, 225), -1)

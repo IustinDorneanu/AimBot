@@ -8,6 +8,7 @@ from pathlib import Path
 @dataclass(frozen=True)
 class Profile:
     window_title: str = "Control"
+    process_names: tuple = ("Control_DX11.exe", "Control_DX12.exe")
     capture_backend: str = "mss"
     capture_fps: int = 30
     capture_fraction: float = 0.5
@@ -50,6 +51,9 @@ class Profile:
         if (not isinstance(self.enemy_classes, (list, tuple)) or not self.enemy_classes
                 or any(not isinstance(c, str) or not c.strip() for c in self.enemy_classes)):
             raise ValueError("enemy_classes must contain non-empty class names")
+        if (not isinstance(self.process_names, (list, tuple))
+                or any(not isinstance(p, str) or not p.strip() for p in self.process_names)):
+            raise ValueError("process_names must be a list of executable names (empty to match by title only)")
         for name in ("window_title", "model_path", "device"):
             if not isinstance(getattr(self, name), str) or not getattr(self, name).strip():
                 raise ValueError(f"{name} must be a non-empty string")

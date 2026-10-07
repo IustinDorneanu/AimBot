@@ -27,11 +27,19 @@ class HealthBarDetector:
             if bottom <= top or right <= left:
                 continue
             _, _, stats, _ = cv2.connectedComponentsWithStats(mask[top:bottom, left:right])
-            for sx, sy, sw, sh, area in stats[1:]:
-                if not (2*scale <= sw <= 16*scale and 7*scale <= sh <= 18*scale
-                        and area >= 10*scale*scale):
-                    continue
-                center = left + sx + sw/2
+            glyphs = sorted((left + sx, left + sx + sw) for sx, sy, sw, sh, area in stats[1:]
+                            if 2*scale <= sw <= 16*scale and 7*scale <= sh <= 18*scale
+                            and area >= 10*scale*scale)
+            # Multi-digit levels are separate components; merge adjacent
+            # glyphs so each numeral is centered once over its bar.
+            numerals = []
+            for start, end in glyphs:
+                if numerals and start - numerals[-1][1] <= 5*scale:
+                    numerals[-1][1] = max(numerals[-1][1], end)
+                else:
+                    numerals.append([start, end])
+            for start, end in numerals:
+                center = (start + end) / 2
                 bar_left = center - 30*scale
                 if not (x-4*scale <= bar_left <= x+w-2*scale):
                     continue

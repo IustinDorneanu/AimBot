@@ -15,7 +15,7 @@ class PipelineTests(unittest.TestCase):
         from visionaim.detection.detector import Detection
         window = GameWindow(123, 'Control', Rect(0, 0, 1920, 1080))
         desktop = SimpleNamespace(emergency_pressed=lambda: False, key_down=lambda key: key == 0x02,
-                                  find=lambda title: window, is_foreground=lambda _: True)
+                                  find=lambda title, processes=(): window, is_foreground=lambda _: True)
         capture = Mock()
         capture.grab.return_value = np.zeros((540, 960, 3), dtype=np.uint8)
         detector = Mock()
@@ -36,7 +36,7 @@ class PipelineTests(unittest.TestCase):
         window = GameWindow(123, "Control", Rect(100, 100, 1280, 720))
         focus = iter((False, True))
         desktop = SimpleNamespace(emergency_pressed=lambda: False, key_down=lambda key: False,
-                                  find=lambda title: window, is_foreground=lambda _: next(focus))
+                                  find=lambda title, processes=(): window, is_foreground=lambda _: next(focus))
         frame = np.zeros((360, 640, 3), dtype=np.uint8)
         from unittest.mock import Mock
         capture = Mock()
@@ -65,7 +65,7 @@ class PipelineTests(unittest.TestCase):
         from visionaim.capture.window_detection import GameWindow
         window = GameWindow(123, "Control", Rect(0, 0, 1280, 720))
         desktop = SimpleNamespace(emergency_pressed=lambda: False, key_down=lambda key: False,
-                                  find=lambda title: window, is_foreground=lambda _: True)
+                                  find=lambda title, processes=(): window, is_foreground=lambda _: True)
         capture = Mock()
         capture.grab.side_effect = RuntimeError("capture failed")
         args = parser().parse_args(["--capture-only", "--headless"])
@@ -74,6 +74,29 @@ class PipelineTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "capture failed"):
                 run(args, Profile())
         capture.close.assert_called_once()
+
+
+class WindowMatchTests(unittest.TestCase):
+    def desktop(self, foreground):
+        from unittest.mock import Mock
+        from visionaim.capture.window_detection import GameWindow, WindowsDesktop
+        desktop = object.__new__(WindowsDesktop)  # Skip the Win32 setup.
+        windows = [GameWindow(1, "Control Panel", Rect(0, 0, 800, 600)),
+                   GameWindow(2, "Control", Rect(0, 0, 1920, 1080))]
+        processes = {1: "explorer.exe", 2: "Control_DX12.exe"}
+        desktop.windows = lambda: windows
+        desktop.process_name = processes.get
+        desktop.api = Mock()
+        desktop.api.GetForegroundWindow.return_value = foreground
+        return desktop
+
+    def test_process_filter_rejects_other_windows_with_matching_title(self):
+        found = self.desktop(foreground=1).find("control", ("control_dx11.exe", "control_dx12.exe"))
+        self.assertEqual((found.handle, found.process), (2, "Control_DX12.exe"))
+        self.assertIsNone(self.desktop(foreground=1).find("control", ("Other.exe",)))
+
+    def test_empty_process_filter_matches_title_only(self):
+        self.assertEqual(self.desktop(foreground=1).find("control").handle, 1)
 
 
 if __name__ == "__main__":

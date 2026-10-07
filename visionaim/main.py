@@ -24,6 +24,8 @@ def parser():
     modes.add_argument("--demo", action="store_true", help="Synthetic targets; works without Windows or model weights")
     result.add_argument("--model", type=Path, help="Local YOLO .pt model; no automatic model downloads")
     result.add_argument("--window-title", help="Case-insensitive game window title substring")
+    result.add_argument("--process", action="append", metavar="EXE",
+                        help="Game executable name (repeatable); replaces the profile's process_names")
     result.add_argument("--device", help="cpu, 0, or another Ultralytics device")
     result.add_argument("--frames", type=int, default=0, help="Stop after N frames; 0 runs until stopped")
     result.add_argument("--headless", action="store_true", help="Print metrics without displaying the preview")
@@ -99,7 +101,8 @@ def run(args, profile):
                 # Keep the preview outside the central crop on the tested
                 # 1920x1080 desktop, so it cannot capture its own annotations.
                 cv2.moveWindow(PREVIEW, 0, 0)
-        print("Demo: synthetic targets" if args.demo else "Waiting for foreground game window: " + profile.window_title)
+        processes = f" ({', '.join(profile.process_names)})" if profile.process_names else ""
+        print("Demo: synthetic targets" if args.demo else f"Waiting for foreground game window: {profile.window_title}{processes}")
         print("Hold right mouse button: marker lock assistance." if lock else "Preview only: no mouse movement.")
         print("F8: pause, F9: screenshot, Ctrl+Shift+F12: exit globally.")
         while not args.frames or count < args.frames:
@@ -123,7 +126,7 @@ def run(args, profile):
                 selector.reset()
             if key == ord("s") or 0x78 in pressed:
                 screenshot_pending = True
-            window = desktop.find(profile.window_title) if desktop else None
+            window = desktop.find(profile.window_title, profile.process_names) if desktop else None
             status = None
             if paused:
                 status = "Paused"
@@ -228,13 +231,15 @@ def main(argv=None):
             return 0
         if args.list_windows:
             from .capture.window_detection import WindowsDesktop
-            for window in WindowsDesktop().windows():
-                print(f"{window.title} | {window.client.width}x{window.client.height} at {window.client.left},{window.client.top}")
+            desktop = WindowsDesktop()
+            for window in desktop.windows():
+                print(f"{window.title} | {desktop.process_name(window.handle) or '?'} | {window.client.width}x{window.client.height} at {window.client.left},{window.client.top}")
             return 0
         profile = load_profile(args.profile) if args.profile.exists() else Profile().validate()
         if not args.profile.exists() and not args.demo:
             raise FileNotFoundError(f"Profile not found: {args.profile}. Run --write-default-profile first.")
-        overrides = {key: value for key, value in {"window_title": args.window_title, "device": args.device}.items() if value is not None}
+        overrides = {key: value for key, value in {"window_title": args.window_title, "device": args.device,
+                                                  "process_names": tuple(args.process) if args.process else None}.items() if value is not None}
         profile = replace(profile, **overrides).validate()
         return run(args, profile)
     except KeyboardInterrupt:

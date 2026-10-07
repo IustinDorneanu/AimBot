@@ -1,5 +1,6 @@
 {
   "window_title": "Control",
+  "process_names": ["Control_DX11.exe", "Control_DX12.exe"],
   "capture_backend": "mss",
   "capture_fps": 30,
   "capture_fraction": 0.5,
