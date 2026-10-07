@@ -1,0 +1,14 @@
+.venv/
+.venv-win/
+capture.*.log
+health-bars.*.log
+screenshots-contact.png
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+models/*
+!models/.gitkeep
+datasets/*
+!datasets/.gitkeep

@@ -1,0 +1,16 @@
+{
+  "window_title": "Control",
+  "capture_backend": "mss",
+  "capture_fps": 30,
+  "capture_fraction": 0.5,
+  "detection_resolution": [640, 360],
+  "confidence": 0.6,
+  "aim_radius": 150,
+  "target_point": "upper_chest",
+  "target_persistence_ms": 250,
+  "switch_ratio": 0.65,
+  "model_path": "models/control.pt",
+  "enemy_classes": ["enemy"],
+  "device": "cpu",
+  "half": false
+}
